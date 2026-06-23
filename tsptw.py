@@ -263,12 +263,16 @@ def local_search(nodes, e, l, d, c, mode=3):
 
     return best_cost, best_route
 
-def ACO(N, e, l, d, c, alpha=1, beta=1, evaporation_rate = 0.5):
-    e, l, d, c = np.array(e), np.array(l), np.array(d), np.array(c)
+def ACO(N, e, l, d, c, alpha=1, beta=1, evaporation_rate=0.5):
+    e = np.array(e)
+    l = np.array(l)
+    d = np.array(d)
+    c = np.array(c)
 
     pheromone = np.ones((N + 1, N + 1))
     Q = 100
     A = (e + d)[:, None] + c <= l
+    
     total_cost = float('inf')
     nodes = list(range(1, N + 1))
     m = min(50, N)
@@ -277,9 +281,11 @@ def ACO(N, e, l, d, c, alpha=1, beta=1, evaporation_rate = 0.5):
 
     while not_improved < 100:
         not_improved += 1
+        
         for ants in range(m):
             visited = np.zeros(N + 1, dtype=bool)
-            visited[0] = 1
+            visited[0] = True
+            
             route = [0]
             i = 0
             time = 0
@@ -287,7 +293,6 @@ def ACO(N, e, l, d, c, alpha=1, beta=1, evaporation_rate = 0.5):
 
             for _ in range(N):
                 feasible_nodes = np.flatnonzero(A[i, :] & ~visited)
-
                 arrival = time + d[i] + c[i, feasible_nodes]
                 
                 valid_mask = arrival <= l[feasible_nodes]
@@ -303,12 +308,17 @@ def ACO(N, e, l, d, c, alpha=1, beta=1, evaporation_rate = 0.5):
                 slack = l[feasible_nodes] - finish
 
                 H = wait + slack + c[i, feasible_nodes]
-                eta = 1 / (H + 1e-6)  # Add a small constant to avoid division by zero
+                eta = 1 / (H + 1e-6)
 
-                total_p = np.sum(pheromone[i, feasible_nodes] ** alpha * eta ** beta)
-                p = (pheromone[i, feasible_nodes] ** alpha * eta ** beta) / total_p
+                pheromone_level = pheromone[i, feasible_nodes] ** alpha
+                heuristic_level = eta ** beta
+                
+                p_num = pheromone_level * heuristic_level
+                p_den = np.sum(p_num)
+                p = p_num / p_den
                 
                 idx = np.random.choice(len(feasible_nodes), p=p)
+                
                 j = feasible_nodes[idx]
                 s = start[idx]
                 cost = c[i, j]
@@ -316,14 +326,16 @@ def ACO(N, e, l, d, c, alpha=1, beta=1, evaporation_rate = 0.5):
                 time = s
                 i = j
                 L += cost
+                
                 route.append(j)
-                visited[j] = 1
+                visited[j] = True
+                
             else:
                 route = np.array(route)
                 from_nodes = route[:-1]
                 to_nodes = route[1:]
+                
                 pheromone[from_nodes, to_nodes] += Q / L
-                pheromone[to_nodes, from_nodes] += Q / L
 
                 if L < total_cost:
                     best_route = route[1:]
@@ -332,7 +344,6 @@ def ACO(N, e, l, d, c, alpha=1, beta=1, evaporation_rate = 0.5):
 
         pheromone *= (1 - evaporation_rate)
 
-    print_sol(best_route)
 
 def print_sol(route):
     print(len(route))
