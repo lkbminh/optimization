@@ -14,7 +14,7 @@ def ACO(N, e, l, d, c, alpha=1, beta=1, rho=0.1, Q=1.0, max_no_improvements=100)
         tau_max, tau_min = update_bounds(best_cost, rho, N)
 
     A = (e + d)[:, None] + c <= l
-    pheromone = np.full((N + 1, N + 1), tau_max * min(0.1, 1 / N))
+    pheromone = np.full((N + 1, N + 1), tau_min)
     np.fill_diagonal(pheromone, 0.0)
 
     if best_route is not None and best_cost < float('inf'):
@@ -53,8 +53,7 @@ def ACO(N, e, l, d, c, alpha=1, beta=1, rho=0.1, Q=1.0, max_no_improvements=100)
                 wait = start - arrival
                 slack = l[feasible_nodes] - arrival
                 H = wait + slack + c[i, feasible_nodes]
-                H_norm = H / (H.max() + 1e-6)  
-                eta = 1.0 / (H_norm + 1e-6)
+                eta = 1.0 / (H + 1e-6)
 
                 p_num = pheromone[i, feasible_nodes] ** alpha * eta ** beta
                 p_num = np.nan_to_num(p_num, nan=0.0, posinf=0.0, neginf=0.0)
@@ -97,7 +96,7 @@ def ACO(N, e, l, d, c, alpha=1, beta=1, rho=0.1, Q=1.0, max_no_improvements=100)
         if iter_best_route is not None:
             pheromone[iter_best_route[:-1], iter_best_route[1:]] += Q / iter_best_cost
 
-        pheromone = np.clip(pheromone, tau_min, tau_max)                 
+        pheromone = np.clip(pheromone, tau_min, tau_max)
 
     return best_route, best_cost    
 
@@ -149,9 +148,9 @@ def greedy(N, e, l, d, c):
 
     return route, cost
 
-def update_bounds(best_cost, rho, N, p_best=0.05):
-    tau_max = 1.0 / (rho * best_cost)
-    tau_min = 0.01 * tau_max
+def update_bounds(best_cost, rho, N, Q = 1.0):
+    tau_max = Q / (rho * best_cost)
+    tau_min = (1/N) * tau_max
 
     return tau_max, tau_min
 
