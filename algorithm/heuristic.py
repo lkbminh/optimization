@@ -19,8 +19,7 @@ def greedy(N, e, l, d, c):
                     wait = start - arrival
                     slack = l[j] - arrival
 
-                    H = c[i][j] + wait + slack
-
+                    H = c[i][j] + wait + 0.35 * slack  # Example heuristic function
                     candidates.append((H, j, start, finish))
             
         if not candidates:

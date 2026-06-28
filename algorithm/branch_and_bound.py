@@ -1,6 +1,6 @@
 import sys
 
-def branch_and_bound(N, e, l, d, c):
+def BranchAndBound(N, e, l, d, c):
     min_edge = float('inf')
     for i in range(N + 1):
         for j in range(N + 1):
@@ -31,7 +31,7 @@ def branch_and_bound(N, e, l, d, c):
         # Branching
         for nxt in range(1, N + 1):
             if not visited[nxt]:
-                arrival = time + c[curr][nxt] + d[curr] 
+                arrival = time + c[curr][nxt]
                 
                 if arrival <= l[nxt]:
                     start = max(arrival, e[nxt])
@@ -71,13 +71,11 @@ def main():
     
     l[0] = max(l[i] + d[i] + c[i][0] for i in range(1, N + 1))
 
-    route, cost = branch_and_bound(N, e, l, d, c)
+    route, cost = BranchAndBound(N, e, l, d, c)
     
-    if cost == float('inf'):
-        print(-1)
-    else:
+    if cost < float('inf'):
         print(N)
-        print(*(route))
+        print(*(route))        
 
 if __name__ == "__main__":
     main()

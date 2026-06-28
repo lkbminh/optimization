@@ -4,11 +4,12 @@ import time
 import re
 import json
 import multiprocessing
-
+import numpy as np
 # Assuming these are imported from your project structure
 from algorithm.cp import CP
 from algorithm.mip import MIP
 from algorithm.heuristic import LocalSearch
+from algorithm.aco import ACO
 
 # ==========================================
 # 1. IMPORT OR DEFINE YOUR FUNCTIONS HERE
@@ -96,7 +97,7 @@ def run_with_timeout(func, args, timeout):
 # ==========================================
 # 3. BENCHMARKING LOGIC
 # ==========================================
-def run_benchmark(folder_path, parser_func, target_func, time_limit=120):
+def run_benchmark(folder_path, parser_func, target_func, time_limit=300):
     function_name = target_func.__name__
     results = []
 
@@ -116,57 +117,68 @@ def run_benchmark(folder_path, parser_func, target_func, time_limit=120):
 
     print(f"Found {len(inp_files)} test case(s). Starting benchmark...\n")
 
+    # ==========================================
+    # HELPER: dump results to JSON
+    # ==========================================
+    def save_results():
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        results_dir = os.path.join(script_dir, 'results')
+        os.makedirs(results_dir, exist_ok=True)
+
+        output_filename = f"{function_name}_results.json"
+        output_path = os.path.join(results_dir, output_filename)
+
+        with open(output_path, 'w', encoding='utf-8') as out_file:
+        # Pass the converter to the 'default' parameter
+            json.dump(results, out_file, indent=4, default=default_converter)
+
+        print(f"\nResults saved to '{output_path}'.")
+
     for filepath in inp_files:
         filename = os.path.basename(filepath)
         match = re.search(r'n(\d+)\.inp', filename)
-        n_value = int(match.group(1)) if match else filename 
-        
+        n_value = int(match.group(1)) if match else filename
+
         try:
             # Parse the inputs
             N, e, l, d, c = parser_func(filepath)
-            
+
             # Run the algorithm with the enforced timeout
             result, runtime = run_with_timeout(target_func, (N, e, l, d, c), time_limit)
-            
+
             if result == "TLE":
-                cost = "TLE"
-                recorded_runtime = ">120"
                 print(f"Processed N={n_value}: TLE (Exceeded {time_limit}s)")
+                results.append({"N": n_value, "runtime": f">{time_limit}", "cost": "TLE"})
+
+                print("TLE encountered — stopping benchmark early.")
+                save_results()
+                return  # Exit immediately, no further cases run
+
             elif result == "OOM":
-                cost = "OOM"
-                recorded_runtime = "OOM"
                 print(f"Processed N={n_value}: OOM (Out Of Memory)")
+                results.append({"N": n_value, "runtime": "OOM", "cost": "OOM"})
+
             else:
                 route, cost = result
-                recorded_runtime = runtime
                 print(f"Processed N={n_value}: Time = {runtime:.6f}s, Cost = {cost}")
-            
-            result_data = {
-                "N": n_value,
-                "runtime": recorded_runtime,
-                "cost": cost
-            }
-            results.append(result_data)
-            
+                results.append({"N": n_value, "runtime": runtime, "cost": cost})
+
         except Exception as err:
             print(f"Error processing N='{n_value}' ({filename}): {err}")
 
     # ==========================================
     # 4. DUMP RESULTS TO JSON
     # ==========================================
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    results_dir = os.path.join(script_dir, 'results')
-    os.makedirs(results_dir, exist_ok=True)
-    
-    output_filename = f"{function_name}_results.json"
-    output_path = os.path.join(results_dir, output_filename)
-    
-    with open(output_path, 'w', encoding='utf-8') as out_file:
-        json.dump(results, out_file, indent=4)
+    save_results()
+    print("Benchmarking complete.")
 
-    print(f"\nBenchmarking complete. JSON dumped to '{output_path}'.")
-
+def default_converter(o):
+    if isinstance(o, (np.int64, np.int32)):
+        return int(o)
+    if isinstance(o, (np.float64, np.float32)):
+        return float(o)
+    raise TypeError(f"Object of type {o.__class__.__name__} is not JSON serializable")
 
 if __name__ == '__main__':
     TARGET_FOLDER = 'tests'  
-    run_benchmark(TARGET_FOLDER, my_input_parser, LocalSearch, time_limit=120)
+    run_benchmark(TARGET_FOLDER, my_input_parser, ACO, time_limit=120)

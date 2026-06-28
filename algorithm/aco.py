@@ -1,11 +1,16 @@
 import numpy as np
 import sys
 
-def ACO(N, e, l, d, c, alpha=1, beta=1, rho=0.1, Q=1.0, max_no_improvements=100):
+def ACO(N, e, l, d, c, alpha=1, beta=2, rho=0.1, Q=1.0, max_no_improvements=50):
     e, l, d, c = map(np.array, (e, l, d, c))
 
-    best_route, best_cost = greedy(N, e, l, d, c)
-    print(f"Greedy solution: Cost = {best_cost}")
+    temp_route, temp_cost = greedy(N, e, l, d, c)
+    if not temp_route:
+        best_route = None
+        best_cost = float('inf')
+    else:
+        best_route = temp_route
+        best_cost = temp_cost
 
     # Fallback if greedy fails to find a valid route
     if best_cost == float('inf'):
@@ -119,8 +124,7 @@ def greedy(N, e, l, d, c):
         candidates = []
         for j in range(1, N + 1):
             if not visited[j]:
-                # FIX: Swapped to tuple indexing for numpy efficiency
-                arrival = time + d[i] + c[i, j]
+                arrival = time + d[i] + c[i][j]
                 
                 if arrival <= l[j]:
                     start = max(arrival, e[j])
@@ -128,25 +132,25 @@ def greedy(N, e, l, d, c):
                     wait = start - arrival
                     slack = l[j] - arrival
 
-                    H = c[i, j] + wait + slack
-
+                    H = c[i][j] + wait + 0.35 * slack  # Example heuristic function
                     candidates.append((H, j, start, finish))
             
         if not candidates:
             return [], float('inf')
         
-        h, j, s, f = min(candidates, key=lambda x: x[0])
+        h, j, s, f = min(candidates, key= lambda x: x[0])
 
         time = s
-        cost += c[i, j]
+        cost += c[i][j]
         i = j
 
         route.append(j)
         visited[j] = 1
 
-    cost += c[i, 0] # Back to depot
+    cost += c[i][0] #Back to depot
 
     return route, cost
+
 
 def update_bounds(best_cost, rho, N, Q = 1.0):
     tau_max = Q / (rho * best_cost)
@@ -178,7 +182,7 @@ def main():
     l[0] = max(l[i] + d[i] + c[i][0] for i in range(1, N + 1))
 
     # FIX: Was calling 'hybrid_ACO' instead of 'ACO'
-    route, cost = ACO(N, e, l, d, c, alpha=1, beta=3, rho=0.1, max_no_improvements=100)
+    route, cost = ACO(N, e, l, d, c, alpha=1, beta=2, rho=0.1, max_no_improvements=100)
     
     print(N)
     if route is not None:
